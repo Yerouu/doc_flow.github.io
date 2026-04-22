@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>У камина</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@100;200;300&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0704;font-family:'Jost',sans-serif;cursor:none}
+
+/* cursor */
+#cur{position:fixed;width:8px;height:8px;border-radius:50%;background:rgba(255,200,100,.7);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+
+/* ── full scene ── */
+#scene{position:relative;width:100vw;height:100vh;overflow:hidden}
+
+/* ROOM - dark wooden walls */
+#room-bg{
+  position:absolute;inset:0;
+  background:
+    /* ceiling */
+    linear-gradient(to bottom, #0c0806 0%, #130d08 18%),
+    /* wall planks illusion */
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px,
+      transparent 1px, transparent 80px
+    ),
+    #130d08;
+}
+/* floor */
+#floor{
+  position:absolute;bottom:0;left:0;right:0;height:28vh;
+  background:
+    repeating-linear-gradient(90deg,
+      #1a0e08 0px,#1a0e08 119px,
+      #150b06 119px,#150b06 120px,
+      #1e1209 120px,#1e1209 239px,
+      #150b06 239px,#150b06 240px
+    );
+  border-top:3px solid #251508;
+}
+/* floor shine */
+#floor::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse 70% 60% at 50% 0%, rgba(255,120,30,.08) 0%, transparent 60%);
+}
+
+/* ambient fire glow on room */
+#room-glow{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 55% 50% at 50% 72%, rgba(255,90,15,.18) 0%, transparent 70%);
+  animation:room-flicker 4s ease-in-out infinite alternate;
+}
+@keyframes room-flicker{
+  0%  {opacity:.8; background:radial-gradient(ellipse 55% 50% at 50% 72%, rgba(255,90,15,.18) 0%, transparent 70%)}
+  30% {opacity:1;  background:radial-gradient(ellipse 60% 55% at 50% 72%, rgba(255,110,20,.22) 0%, transparent 65%)}
+  60% {opacity:.85;background:radial-gradient(ellipse 50% 45% at 50% 73%, rgba(255,70,10,.16) 0%, transparent 72%)}
+  100%{opacity:1;  background:radial-gradient(ellipse 58% 52% at 50% 71%, rgba(255,100,18,.20) 0%, transparent 68%)}
+}
+
+/* ── FIREPLACE STRUCTURE ── */
+#fp-wrap{
+  position:absolute;
+  bottom:26vh;
+  left:50%;transform:translateX(-50%);
+  width:min(520px,88vw);
+}
+
+/* outer stone surround */
+.fp-surround{
+  position:relative;
+  width:100%;
+  padding-bottom:96%; /* aspect ratio container */
+}
+
+/* SVG fireplace drawing */
+#fp-svg{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  overflow:visible;
+}
+
+/* fire canvas - lives inside the arch opening */
+#fire-canvas{
+  position:absolute;
+  /* tuned to sit inside the arch */
+  left:24%;top:18%;
+  width:52%;height:62%;
+  z-index:2;
+}
+
+/* glowing coals under fire */
+#coals-canvas{
+  position:absolute;
+  left:24%;top:73%;
+  width:52%;height:10%;
+  z-index:3;
+}
+
+/* shadow under fireplace */
+#fp-shadow{
+  position:absolute;bottom:-6%;left:5%;right:5%;height:12px;
+  background:radial-gradient(ellipse 70% 100%, rgba(0,0,0,.7) 0%, transparent 70%);
+}
+
+/* ── TIMER overlay ── */
+#timer-overlay{
+  position:absolute;
+  bottom:2.5vh;
+  left:50%;transform:translateX(-50%);
+  z-index:20;
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;
+  animation:fade-up 3s ease both;
+}
+@keyframes fade-up{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+#event-label{
+  font-size:.55rem;font-weight:200;letter-spacing:.4em;text-transform:uppercase;
+  color:rgba(255,200,120,.35);
+}
+#event-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(.9rem,2.2vw,1.3rem);
+  font-weight:300;color:rgba(255,220,160,.6);
+  letter-spacing:.18em;text-align:center;
+}
+.cd-row{display:flex;align-items:baseline;gap:.15rem}
+.cd-num{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.6rem,4vw,2.8rem);
+  font-weight:300;color:rgba(255,215,150,.75);
+  min-width:1.6ch;text-align:center;
+  text-shadow:0 0 20px rgba(255,150,40,.4);
+  transition:text-shadow .15s;
+}
+.cd-num.flash{text-shadow:0 0 35px rgba(255,180,60,.9)}
+.cd-unit-lbl{
+  font-size:.45rem;font-weight:200;letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(255,190,100,.25);align-self:flex-end;margin-bottom:.35rem;
+}
+.cd-sep{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.4rem,3vw,2.2rem);
+  color:rgba(255,180,80,.2);margin:0 .1rem;
+  animation:sep-fade 2s ease-in-out infinite;
+}
+@keyframes sep-fade{0%,100%{opacity:.2}50%{opacity:.06}}
+
+.ep-row{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin-top:.2rem}
+.ep-btn{
+  background:rgba(255,150,50,.05);border:1px solid rgba(255,150,50,.15);
+  color:rgba(255,190,110,.35);font-family:'Jost',sans-serif;
+  font-size:.5rem;font-weight:200;letter-spacing:.18em;text-transform:uppercase;
+  padding:.3rem .8rem;border-radius:2px;cursor:none;transition:all .3s;
+}
+.ep-btn:hover,.ep-btn.active{background:rgba(255,150,50,.1);border-color:rgba(255,150,50,.3);color:rgba(255,210,140,.7)}
+
+/* sound btn */
+#sound-btn{
+  position:fixed;bottom:1.4rem;right:1.6rem;z-index:50;
+  background:none;border:1px solid rgba(255,190,80,.18);
+  color:rgba(255,190,80,.4);font-family:'Jost',sans-serif;
+  font-size:.52rem;letter-spacing:.2em;text-transform:uppercase;
+  padding:.4rem .9rem;border-radius:2px;cursor:none;transition:all .3s;
+}
+#sound-btn:hover{background:rgba(255,190,80,.07);color:rgba(255,190,80,.8)}
+
+/* title in top */
+#title{
+  position:absolute;top:7vh;left:50%;transform:translateX(-50%);
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.4rem,3.5vw,2.6rem);
+  font-weight:300;color:rgba(245,225,195,.55);
+  letter-spacing:.2em;white-space:nowrap;
+  text-shadow:0 0 40px rgba(255,120,30,.25);
+  animation:fade-up-title 2.5s ease both;
+  z-index:10;
+}
+@keyframes fade-up-title{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* smoke particles */
+.smoke{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle, rgba(80,70,60,.25) 0%, transparent 70%);
+  animation:smoke-rise var(--dur) ease-out forwards;
+  pointer-events:none;z-index:1;
+}
+@keyframes smoke-rise{
+  0%  {opacity:.5;transform:translate(0,0) scale(1)}
+  50% {opacity:.3;transform:translate(var(--dx),calc(var(--dy)*.5)) scale(2)}
+  100%{opacity:0; transform:translate(calc(var(--dx)*2),var(--dy)) scale(3.5)}
+}
+</style>
+</head>
+<body>
+<div id="cur"></div>
+
+<div id="scene">
+  <div id="room-bg"></div>
+  <div id="room-glow"></div>
+  <div id="floor"></div>
+
+  <div id="title">Вечер у камина</div>
+
+  <!-- FIREPLACE -->
+  <div id="fp-wrap">
+    <div class="fp-surround">
+
+      <!-- SVG: realistic stone fireplace -->
+      <svg id="fp-svg" viewBox="0 0 520 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- stone texture gradient for outer surround -->
+          <linearGradient id="stone-l" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#2e2218"/>
+            <stop offset="30%"  stop-color="#3a2c1e"/>
+            <stop offset="60%"  stop-color="#2a1f14"/>
+            <stop offset="100%" stop-color="#201610"/>
+          </linearGradient>
+          <linearGradient id="stone-r" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#201610"/>
+            <stop offset="40%"  stop-color="#2a1f14"/>
+            <stop offset="70%"  stop-color="#352618"/>
+            <stop offset="100%" stop-color="#2e2218"/>
+          </linearGradient>
+          <linearGradient id="mantle-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#3d2e1e"/>
+            <stop offset="40%"  stop-color="#2e2016"/>
+            <stop offset="100%" stop-color="#1e1409"/>
+          </linearGradient>
+          <linearGradient id="arch-inner" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#0a0704"/>
+            <stop offset="80%" stop-color="#130905"/>
+            <stop offset="100%" stop-color="#1a0e06"/>
+          </linearGradient>
+          <linearGradient id="hearth-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#1e1409"/>
+            <stop offset="100%" stop-color="#120c06"/>
+          </linearGradient>
+          <radialGradient id="arch-glow" cx="50%" cy="100%" r="60%">
+            <stop offset="0%"  stop-color="rgba(255,90,15,.22)"/>
+            <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+          </radialGradient>
+          <!-- brick pattern for back wall -->
+          <pattern id="bricks" x="0" y="0" width="60" height="24" patternUnits="userSpaceOnUse">
+            <rect width="60" height="24" fill="#1a0d07"/>
+            <rect x="1" y="1" width="55" height="10" rx="1" fill="#1f1109" stroke="#150c06" stroke-width=".5"/>
+            <rect x="31" y="13" width="27" height="10" rx="1" fill="#1c0f08" stroke="#150c06" stroke-width=".5"/>
+            <rect x="1"  y="13" width="27" height="10" rx="1" fill="#1e1008" stroke="#150c06" stroke-width=".5"/>
+          </pattern>
+          <clipPath id="arch-clip">
+            <path d="M130,420 L130,230 Q130,130 260,130 Q390,130 390,230 L390,420 Z"/>
+          </clipPath>
+          <!-- shadow on sides of arch -->
+          <linearGradient id="arch-shadow-l" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="rgba(0,0,0,.6)"/>
+            <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+          </linearGradient>
+          <linearGradient id="arch-shadow-r" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+            <stop offset="100%" stop-color="rgba(0,0,0,.6)"/>
+          </linearGradient>
+        </defs>
+
+        <!-- ── OUTER BODY ── -->
+        <!-- left pillar -->
+        <rect x="30" y="60" width="130" height="390" fill="url(#stone-l)"/>
+        <!-- right pillar -->
+        <rect x="360" y="60" width="130" height="390" fill="url(#stone-r)"/>
+        <!-- top lintel above arch -->
+        <rect x="30" y="60" width="460" height="90" fill="url(#mantle-g)"/>
+
+        <!-- stone block lines - left -->
+        <line x1="30" y1="120" x2="160" y2="120" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="30" y1="180" x2="160" y2="180" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="30" y1="240" x2="160" y2="240" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="30" y1="300" x2="160" y2="300" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="30" y1="360" x2="160" y2="360" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <!-- vertical joint left pillar -->
+        <line x1="88"  y1="60" x2="88"  y2="450" stroke="rgba(0,0,0,.2)" stroke-width="1"/>
+        <!-- light edge left -->
+        <line x1="30" y1="60" x2="30" y2="450" stroke="rgba(255,255,255,.06)" stroke-width="2"/>
+        <line x1="160" y1="60" x2="160" y2="450" stroke="rgba(0,0,0,.5)" stroke-width="2"/>
+
+        <!-- stone block lines - right -->
+        <line x1="360" y1="120" x2="490" y2="120" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="360" y1="180" x2="490" y2="180" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="360" y1="240" x2="490" y2="240" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="360" y1="300" x2="490" y2="300" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="360" y1="360" x2="490" y2="360" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+        <line x1="432" y1="60" x2="432" y2="450" stroke="rgba(0,0,0,.2)" stroke-width="1"/>
+        <line x1="490" y1="60" x2="490" y2="450" stroke="rgba(255,255,255,.06)" stroke-width="2"/>
+        <line x1="360" y1="60" x2="360" y2="450" stroke="rgba(0,0,0,.5)" stroke-width="2"/>
+
+        <!-- lintel horizontal joints -->
+        <line x1="30" y1="105" x2="490" y2="105" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+        <!-- lintel vertical joints -->
+        <line x1="110" y1="60" x2="110" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="190" y1="60" x2="190" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="260" y1="60" x2="260" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="330" y1="60" x2="330" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="410" y1="60" x2="410" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+
+        <!-- ── MANTLE SHELF ── -->
+        <rect x="10" y="40" width="500" height="28" rx="2" fill="#3d2c1a"/>
+        <rect x="10" y="40" width="500" height="5"  rx="2" fill="#4a3520"/>
+        <!-- mantle edge shadow -->
+        <rect x="10" y="65" width="500" height="8" fill="rgba(0,0,0,.4)" rx="1"/>
+        <!-- mantle highlight -->
+        <rect x="10" y="40" width="500" height="2" fill="rgba(255,255,255,.08)" rx="1"/>
+
+        <!-- ── ARCH OPENING ── -->
+        <!-- back wall with bricks -->
+        <path d="M130,420 L130,230 Q130,130 260,130 Q390,130 390,230 L390,420 Z" fill="url(#bricks)"/>
+        <!-- arch fire glow on back wall -->
+        <path d="M130,420 L130,230 Q130,130 260,130 Q390,130 390,230 L390,420 Z" fill="url(#arch-glow)"/>
+        <!-- side shadows inside arch -->
+        <rect x="130" y="130" width="60" height="290" fill="url(#arch-shadow-l)" clip-path="url(#arch-clip)"/>
+        <rect x="330" y="130" width="60" height="290" fill="url(#arch-shadow-r)" clip-path="url(#arch-clip)"/>
+
+        <!-- arch border (3D stone edge) -->
+        <path d="M130,420 L130,230 Q130,128 260,128 Q390,128 390,230 L390,420"
+              fill="none" stroke="#1a1009" stroke-width="20"/>
+        <path d="M130,420 L130,230 Q130,128 260,128 Q390,128 390,230 L390,420"
+              fill="none" stroke="#2e2016" stroke-width="14"/>
+        <path d="M130,420 L130,230 Q130,128 260,128 Q390,128 390,230 L390,420"
+              fill="none" stroke="#3a2a1a" stroke-width="6"/>
+        <!-- arch highlight top -->
+        <path d="M190,133 Q260,110 330,133" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- ── HEARTH / FLOOR OF FIREPLACE ── -->
+        <rect x="120" y="415" width="280" height="35" rx="2" fill="url(#hearth-g)"/>
+        <!-- hearth front edge -->
+        <rect x="105" y="445" width="310" height="14" rx="3" fill="#2a1c10"/>
+        <rect x="105" y="445" width="310" height="3"  rx="3" fill="#3a2818"/>
+        <!-- hearth step -->
+        <rect x="85"  y="455" width="350" height="10" rx="3" fill="#221508"/>
+        <rect x="65"  y="461" width="390" height="8"  rx="3" fill="#1a1008"/>
+
+        <!-- ── LOGS (drawn realistically) ── -->
+        <!-- back log -->
+        <ellipse cx="260" cy="406" rx="75" ry="11" fill="#2a1608"/>
+        <rect x="185" y="390" width="150" height="16" rx="8" fill="#2e1a0a"/>
+        <ellipse cx="260" cy="390" rx="75" ry="11" fill="#2a1608"/>
+        <!-- bark texture lines back log -->
+        <line x1="200" y1="390" x2="200" y2="406" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+        <line x1="225" y1="388" x2="225" y2="406" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="260" y1="387" x2="260" y2="406" stroke="rgba(0,0,0,.2)" stroke-width="1"/>
+        <line x1="295" y1="388" x2="295" y2="406" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+        <line x1="320" y1="390" x2="320" y2="406" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+        <!-- log end left -->
+        <ellipse cx="185" cy="397" rx="12" ry="11" fill="#1e1008"/>
+        <ellipse cx="185" cy="397" rx="8"  ry="7"  fill="#241408"/>
+        <ellipse cx="185" cy="397" rx="4"  ry="3"  fill="#1a0e06"/>
+        <!-- front-left log (diagonal) -->
+        <g transform="rotate(-12,195,415)">
+          <ellipse cx="195" cy="415" rx="70" ry="10" fill="#331c0a"/>
+          <rect x="127" y="405" width="140" height="14" rx="7" fill="#3a2010"/>
+          <ellipse cx="195" cy="405" rx="70" ry="10" fill="#2e1808"/>
+          <line x1="145" y1="407" x2="145" y2="419" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+          <line x1="175" y1="405" x2="175" y2="418" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+          <line x1="210" y1="404" x2="210" y2="418" stroke="rgba(0,0,0,.2)" stroke-width="1"/>
+          <line x1="245" y1="405" x2="245" y2="418" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+          <ellipse cx="127" cy="412" rx="11" ry="10" fill="#1e1008"/>
+          <ellipse cx="127" cy="412" rx="7"  ry="6"  fill="#261408"/>
+          <ellipse cx="127" cy="412" rx="3"  ry="3"  fill="#180e06"/>
+        </g>
+        <!-- front-right log (diagonal other way) -->
+        <g transform="rotate(10,325,415)">
+          <ellipse cx="325" cy="415" rx="70" ry="10" fill="#301a09"/>
+          <rect x="257" y="405" width="140" height="14" rx="7" fill="#381e0e"/>
+          <ellipse cx="325" cy="405" rx="70" ry="10" fill="#2c1608"/>
+          <line x1="275" y1="407" x2="275" y2="419" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+          <line x1="305" y1="405" x2="305" y2="418" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+          <line x1="340" y1="404" x2="340" y2="418" stroke="rgba(0,0,0,.2)" stroke-width="1"/>
+          <line x1="370" y1="405" x2="370" y2="418" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+          <ellipse cx="395" cy="412" rx="11" ry="10" fill="#1e1008"/>
+          <ellipse cx="395" cy="412" rx="7"  ry="6"  fill="#261408"/>
+          <ellipse cx="395" cy="412" rx="3"  ry="3"  fill="#180e06"/>
+        </g>
+
+        <!-- glowing coals between logs (CSS canvas over this) -->
+
+        <!-- subtle inner top shadow -->
+        <path d="M130,230 Q130,128 260,128 Q390,128 390,230 L390,260 Q390,160 260,160 Q130,160 130,260 Z"
+              fill="rgba(0,0,0,.3)"/>
+      </svg>
+
+      <!-- fire canvas (positioned over arch area) -->
+      <canvas id="fire-canvas" width="320" height="280"></canvas>
+      <!-- coals canvas -->
+      <canvas id="coals-canvas" width="320" height="50"></canvas>
+
+    </div>
+    <div id="fp-shadow"></div>
+  </div>
+
+  <!-- SMOKE (injected by JS) -->
+  <div id="smoke-wrap" style="position:absolute;bottom:52vh;left:50%;transform:translateX(-50%);width:40px;z-index:1;pointer-events:none"></div>
+
+  <!-- TIMER -->
+  <div id="timer-overlay">
+    <div id="event-label">до события</div>
+    <div id="event-name">Новый год</div>
+    <div class="cd-row">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="cd-num" id="cd-d">000</div>
+        <div class="cd-unit-lbl">дней</div>
+      </div>
+      <div class="cd-sep">:</div>
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="cd-num" id="cd-h">00</div>
+        <div class="cd-unit-lbl">часов</div>
+      </div>
+      <div class="cd-sep">:</div>
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="cd-num" id="cd-m">00</div>
+        <div class="cd-unit-lbl">минут</div>
+      </div>
+      <div class="cd-sep">:</div>
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="cd-num" id="cd-s">00</div>
+        <div class="cd-unit-lbl">секунд</div>
+      </div>
+    </div>
+    <div class="ep-row" id="ep-row"></div>
+  </div>
+
+  <button id="sound-btn" onclick="toggleSound()">🔇 Звук</button>
+</div>
+
+<script>
+/* cursor */
+const cur=document.getElementById('cur');
+document.addEventListener('mousemove',e=>{cur.style.left=e.clientX+'px';cur.style.top=e.clientY+'px'});
+
+/* ═══════ FIRE CANVAS ═══════ */
+(function(){
+  const C=document.getElementById('fire-canvas');
+  const ctx=C.getContext('2d');
+  const W=C.width,H=C.height;
+
+  // More particles, layered, bigger
+  const LAYERS=[
+    {n:60, xSpread:80,  yBase:.92, vyMin:1.4,vyMax:3.0, sizeMin:22,sizeMax:42, decMin:.006,decMax:.011},
+    {n:40, xSpread:55,  yBase:.95, vyMin:1.8,vyMax:3.5, sizeMin:14,sizeMax:28, decMin:.009,decMax:.015},
+    {n:25, xSpread:30,  yBase:.97, vyMin:2.2,vyMax:4.2, sizeMin: 8,sizeMax:16, decMin:.013,decMax:.020},
+  ];
+
+  const COLS=[
+    [255,255,220], // white core
+    [255,240,140], // bright yellow
+    [255,200, 40], // gold
+    [255,130, 15], // orange
+    [255, 55,  5], // red-orange
+    [180, 20,  0], // deep red
+    [ 60,  0,  0], // near black
+  ];
+
+  function lerp(a,b,t){return Math.round(a+(b-a)*t)}
+  function getCol(life){
+    const t=1-life, seg=t*(COLS.length-1);
+    const i=Math.min(Math.floor(seg),COLS.length-2);
+    const c1=COLS[i],c2=COLS[i+1],f=seg-i;
+    return[lerp(c1[0],c2[0],f),lerp(c1[1],c2[1],f),lerp(c1[2],c2[2],f)];
+  }
+
+  function newP(layer){
+    const cx=W/2+(Math.random()-.5)*layer.xSpread;
+    return{
+      x:cx, y:H*layer.yBase+Math.random()*8,
+      vx:(Math.random()-.5)*.8,
+      vy:-(layer.vyMin+Math.random()*(layer.vyMax-layer.vyMin)),
+      life:Math.random(),
+      dec:layer.decMin+Math.random()*(layer.decMax-layer.decMin),
+      size:layer.sizeMin+Math.random()*(layer.sizeMax-layer.sizeMin),
+      layer
+    };
+  }
+
+  const parts=[];
+  LAYERS.forEach(l=>{ for(let i=0;i<l.n;i++) parts.push(newP(l)); });
+
+  // wind turbulence
+  let wind=0, windT=0;
+  function updateWind(){
+    windT+=.008;
+    wind=Math.sin(windT*.7)*.3+Math.sin(windT*1.3)*.2;
+  }
+
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    updateWind();
+
+    // draw back-to-front (already ordered by layer index desc)
+    for(const p of parts){
+      p.vx+=(Math.random()-.5)*.12+wind*.04;
+      p.vx*=.98;
+      p.x+=p.vx; p.y+=p.vy;
+      p.life-=p.dec; p.size*=.995;
+      if(p.life<=0) Object.assign(p,newP(p.layer));
+
+      const[r,g,b]=getCol(p.life);
+      const alpha=p.life*p.life*.85; // quadratic falloff = sharper edges at base
+      const g2=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);
+      g2.addColorStop(0,`rgba(${r},${g},${b},${alpha})`);
+      g2.addColorStop(.4,`rgba(${r},${g},${b},${alpha*.6})`);
+      g2.addColorStop(1,`rgba(${r},${g},${b},0)`);
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+      ctx.fillStyle=g2;
+      ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+
+  /* ═══ COALS CANVAS ═══ */
+  const CC=document.getElementById('coals-canvas');
+  const cctx=CC.getContext('2d');
+  const CW=CC.width,CH=CC.height;
+
+  // static coal bed
+  const coals=[];
+  for(let i=0;i<180;i++){
+    coals.push({
+      x:CW*.1+Math.random()*CW*.8,
+      y:CH*.3+Math.random()*CH*.55,
+      r:2+Math.random()*5,
+      base:Math.random(), // base brightness
+      phase:Math.random()*Math.PI*2,
+      speed:.4+Math.random()*1.2,
+    });
+  }
+
+  function coalFrame(t){
+    cctx.clearRect(0,0,CW,CH);
+    for(const c of coals){
+      const bright=c.base+Math.sin(t*.001*c.speed+c.phase)*.3;
+      const b=Math.max(0,Math.min(1,bright));
+      // color: dark red → orange → yellow-white at core
+      const r=Math.round(80+b*175);
+      const g=Math.round(b*b*120);
+      const bl=0;
+      const g2=cctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r*1.8);
+      g2.addColorStop(0,`rgba(${r+40},${g+20},${bl},${.7+b*.3})`);
+      g2.addColorStop(.5,`rgba(${r},${g},${bl},${.4+b*.3})`);
+      g2.addColorStop(1,`rgba(${r},0,0,0)`);
+      cctx.beginPath();
+      cctx.arc(c.x,c.y,c.r*1.8,0,Math.PI*2);
+      cctx.fillStyle=g2;
+      cctx.fill();
+    }
+    requestAnimationFrame(coalFrame);
+  }
+  coalFrame(0);
+})();
+
+/* ═══ SMOKE ═══ */
+(function(){
+  const wrap=document.getElementById('smoke-wrap');
+  function spawnSmoke(){
+    const s=document.createElement('div');
+    s.className='smoke';
+    const sz=20+Math.random()*30;
+    const dx=(Math.random()-.5)*60;
+    const dy=-(80+Math.random()*60);
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${(Math.random()-.5)*20}px;top:0;--dx:${dx}px;--dy:${dy}px;--dur:${3+Math.random()*2}s;`;
+    wrap.appendChild(s);
+    setTimeout(()=>s.remove(),(5000));
+  }
+  setInterval(spawnSmoke,600);
+})();
+
+/* ═══ SOUND ═══ */
+let audioCtx=null,soundOn=false,crackleNode,rainNode,crackGain,rainGain;
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  crackGain=audioCtx.createGain();crackGain.gain.value=.28;crackGain.connect(audioCtx.destination);
+  rainGain=audioCtx.createGain();rainGain.gain.value=.1;rainGain.connect(audioCtx.destination);
+}
+function makeNoise(target,type,freq,Q){
+  const len=audioCtx.sampleRate*4;
+  const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;
+  const f=audioCtx.createBiquadFilter();f.type=type;f.frequency.value=freq;if(Q)f.Q.value=Q;
+  src.connect(f);f.connect(target);src.start();return src;
+}
+function toggleSound(){
+  initAudio();
+  const btn=document.getElementById('sound-btn');
+  if(!soundOn){
+    crackleNode=makeNoise(crackGain,'bandpass',1600,.55);
+    rainNode=makeNoise(rainGain,'lowpass',350);
+    soundOn=true;btn.textContent='🔊 Звук';
+    btn.style.borderColor='rgba(255,190,80,.45)';btn.style.color='rgba(255,190,80,.85)';
+  }else{
+    crackleNode.stop();rainNode.stop();soundOn=false;btn.textContent='🔇 Звук';
+    btn.style.borderColor='';btn.style.color='';
+  }
+}
+
+/* ═══ TIMER ═══ */
+const events=[
+  {name:'Новый год',       t(){ const d=new Date();d.setFullYear(d.getFullYear()+1,0,1,0,0,0,0);return d; }},
+  {name:'Лето',            t(){ const d=new Date();d.setMonth(5,1);d.setHours(0,0,0,0);if(d<new Date())d.setFullYear(d.getFullYear()+1);return d; }},
+  {name:'Конец рабочего дня', t(){ const d=new Date();d.setHours(18,0,0,0);if(d<new Date())d.setDate(d.getDate()+1);return d; }},
+  {name:'Пятница',         t(){ const d=new Date();const diff=(5-d.getDay()+7)%7||7;d.setDate(d.getDate()+diff);d.setHours(18,0,0,0);return d; }},
+];
+
+let activeEv=0;
+const epRow=document.getElementById('ep-row');
+const nameEl=document.getElementById('event-name');
+
+events.forEach((ev,i)=>{
+  const b=document.createElement('button');
+  b.className='ep-btn'+(i===0?' active':'');
+  b.textContent=ev.name;
+  b.onclick=()=>{
+    activeEv=i;nameEl.textContent=ev.name;
+    document.querySelectorAll('.ep-btn').forEach((x,j)=>x.classList.toggle('active',j===i));
+  };
+  epRow.appendChild(b);
+});
+
+function pad(n){return String(n).padStart(2,'0')}
+let prevS=-1;
+function tick(){
+  const diff=Math.max(0,events[activeEv].t()-new Date());
+  const tot=Math.floor(diff/1000);
+  const s=tot%60,m=Math.floor(tot/60)%60,h=Math.floor(tot/3600)%24,d=Math.floor(tot/86400);
+  document.getElementById('cd-d').textContent=d;
+  document.getElementById('cd-h').textContent=pad(h);
+  document.getElementById('cd-m').textContent=pad(m);
+  const sEl=document.getElementById('cd-s');sEl.textContent=pad(s);
+  if(s!==prevS){sEl.classList.add('flash');setTimeout(()=>sEl.classList.remove('flash'),180);prevS=s;}
+}
+tick();setInterval(tick,500);
+</script>
+</body>
+</html>
